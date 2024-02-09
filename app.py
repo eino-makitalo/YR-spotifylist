@@ -38,91 +38,36 @@ def refresh_spotify_token():
 
 @app.route('/')
 def home():
-    return """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome</title>
-        <style>
-            body {
-                font-family: 'Arial', sans-serif;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background-color: #f0f0f0;
-            }
-            h1 {
-                font-size: 2rem;
-                color: #333;
-            }
-            p {
-                font-size: 1rem;
-                color: #666;
-            }
-        </style>
-    </head>
-    <body>
-        <div>
-            <h1>Welcome to My Website</h1>
-            <p>This is a simple, elegant homepage.</p>
-        </div>
-    </body>
-    </html>
-    """
+    return render_template('home.html')
 
 @app.route('/list')
 def last_tracks():
     access_token = refresh_spotify_token()
     if not access_token:
         return 'Access token is missing or expired', 400
-    
+
     headers = {"Authorization": f"Bearer {access_token}"}
-    recently_played_url = "https://api.spotify.com/v1/me/player/recently-played?limit=10"
+    recently_played_url = "https://api.spotify.com/v1/me/player/recently-played?limit=20"
     response = requests.get(recently_played_url, headers=headers)
     if response.status_code != 200:
         return f"Failed to fetch recently played tracks: {response.text}", response.status_code
-    
+
     data = response.json()
-    
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Last Played Tracks</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            ul { list-style-type: none; padding: 0; }
-            li { margin-bottom: 10px; }
-            a { text-decoration: none; color: #007BFF; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h2>Last Played Tracks</h2>
-        <ul>
-    """
-    
+    track_details = {}
     for item in data['items']:
         track_name = item['track']['name']
-        artist_names = ", ".join([artist['name'] for artist in item['track']['artists']])
-        spotify_url = item['track']['external_urls']['spotify']
-        html_content += f'<li><a href="{spotify_url}" target="_blank">{track_name}</a> by {artist_names}</li>'
-    
-    html_content += """
-        </ul>
-    </body>
-    </html>
-    """
-    
-    return html_content
+        track_url = item['track']['external_urls']['spotify']
+        # If the track name is already in the dictionary, increment its count
+        if track_name in track_details:
+            track_details[track_name]['count'] += 1
+        else:
+            # Otherwise, add the track to the dictionary with count 1 and store its URL
+            track_details[track_name] = {'count': 1, 'url': track_url}
 
+    # Convert the track_details dictionary to a list of dictionaries for the template
+    tracks_info = [{'name': name, 'count': details['count'], 'url': details['url']} for name, details in track_details.items()]
+
+    return render_template('last_tracks.html', tracks=tracks_info)
 
 @app.route('/authYR12')
 def initialize_auth():
@@ -158,7 +103,7 @@ def callback():
 
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
 
 
 
